@@ -1,0 +1,84 @@
+---
+name: Release
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths: ["charts/**/metadata.yaml"]
+  push:
+    branches: ["main"]
+    paths: ["charts/**/metadata.yaml"]
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
+jobs:
+  changed-files:
+    name: Get Changed Files
+    runs-on: ubuntu-latest
+    outputs:
+      charts: ${{ steps.charts.outputs.charts }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get Changed Files
+        id: changed-files
+        uses: tj-actions/changed-files@v45
+        with:
+          files: charts/**/metadata.yaml
+
+      - name: Extract Chart values
+        id: charts
+        env:
+          FILTER: '[.]'
+        run: |
+          charts=$(yq eval-all --indent=0 --output-format=json "${FILTER}" \
+              ${{ steps.changed-files.outputs.all_changed_and_modified_files }} \
+          )
+          echo "charts=${charts}" >> $GITHUB_OUTPUT
+
+  push-charts:
+    needs: changed-files
+    name: Push Charts
+    runs-on: ubuntu-latest
+    if: ${{ needs.changed-files.outputs.charts != '[]' }}
+    strategy:
+      matrix:
+        charts: ${{ fromJSON(needs.changed-files.outputs.charts) }}
+      max-parallel: 4
+      fail-fast: false
+    steps:
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install Cosign
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: sigstore/cosign-installer@v3
+
+      - name: Login to GitHub Container Registry
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add Helm Repository
+        run: helm repo add upstream ${{ matrix.charts.registry }}
+
+      - name: Update Helm Repository
+        run: helm repo update upstream
+
+      - name: Pull Chart
+        run: helm pull upstream/${{ matrix.charts.chart }} --version ${{ matrix.charts.version }}
+
+      - name: Push Chart
+        if: ${{ github.event_name != 'pull_request' }}
+        run: helm push *.tgz oci://ghcr.io/${{ github.repository }}
+
+      - name: Sign artifacts with Cosign
+        if: ${{ github.event_name != 'pull_request' }}
+        run: cosign sign --yes ghcr.io/${{ github.repository }}/${{ matrix.charts.chart }}:${{ matrix.charts.version }}

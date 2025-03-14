@@ -1,0 +1,24 @@
+{
+  "files.associations": {
+    ".sops.yaml": "lock",
+    "*.sops.yaml": "lock",
+    "helmfile.yaml": "helm",
+    "kubeconfig": "kubernetes",
+    "talosconfig": "kubernetes",
+    "*.json5": "jsonc"
+  },
+  "files.exclude": {
+    ".direnv/": true,
+    ".jj/": true,
+  },
+  "prettier.configPath": ".ci/prettier/.prettierrc.yaml",
+  "prettier.ignorePath": ".ci/prettier/.prettierignore",
+  "yaml.schemas": {
+    "Kubernetes": "kubernetes/*.yaml"
+  },
+  "yaml.customTags": ["!env_var"],
+  "explorer.autoReveal": false,
+  "markdownlint.config": {
+    "extends": ".ci/markdownlint/.markdownlint.yaml"
+  }
+}
