@@ -1,0 +1,4 @@
+---
+registry: https://charts.lwolf.org
+chart: kube-cleanup-operator
+version: 1.0.4
