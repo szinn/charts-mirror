@@ -22,7 +22,7 @@ jobs:
       charts: ${{ steps.charts.outputs.charts }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Get Changed Files
         id: changed-files
